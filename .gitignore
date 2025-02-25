@@ -7,7 +7,7 @@ output.md
 node_modules
 .pnp
 .pnp.js
-
+.idea
 # Local env files
 .env
 .env.local
