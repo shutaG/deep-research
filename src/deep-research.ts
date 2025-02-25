@@ -5,8 +5,8 @@ import pLimit from 'p-limit';
 import { z } from 'zod';
 
 import { o3MiniModel, trimPrompt } from './ai/providers';
-import { systemPrompt } from './prompt';
 import { OutputManager } from './output-manager';
+import { systemPrompt } from './prompt';
 
 // Initialize output manager for coordinated console/progress output
 const output = new OutputManager();
@@ -78,10 +78,7 @@ async function generateSerpQueries({
         .describe(`List of SERP queries, max of ${numQueries}`),
     }),
   });
-  log(
-    `Created ${res.object.queries.length} queries`,
-    res.object.queries,
-  );
+  log(`Created ${res.object.queries.length} queries`, res.object.queries);
 
   return res.object.queries.slice(0, numQueries);
 }
@@ -120,10 +117,7 @@ async function processSerpResult({
         ),
     }),
   });
-  log(
-    `Created ${res.object.learnings.length} learnings`,
-    res.object.learnings,
-  );
+  log(`Created ${res.object.learnings.length} learnings`, res.object.learnings);
 
   return res.object;
 }
@@ -183,29 +177,35 @@ export async function deepResearch({
     totalQueries: 0,
     completedQueries: 0,
   };
-  
+
   const reportProgress = (update: Partial<ResearchProgress>) => {
     Object.assign(progress, update);
     onProgress?.(progress);
   };
 
+  // 根据用户的问题，获取搜索引擎的关键字
   const serpQueries = await generateSerpQueries({
     query,
     learnings,
     numQueries: breadth,
   });
-  
+
   reportProgress({
     totalQueries: serpQueries.length,
-    currentQuery: serpQueries[0]?.query
+    currentQuery: serpQueries[0]?.query,
   });
-  
+  // 限制网页抓取api的速度
   const limit = pLimit(ConcurrencyLimit);
 
+  // 遍历每个查询的关键词
+  // 1.
+  // 2.
   const results = await Promise.all(
     serpQueries.map(serpQuery =>
       limit(async () => {
         try {
+
+          // 1. 获取关键词的搜索结果
           const result = await firecrawl.search(serpQuery.query, {
             timeout: 15000,
             limit: 5,
@@ -217,6 +217,7 @@ export async function deepResearch({
           const newBreadth = Math.ceil(breadth / 2);
           const newDepth = depth - 1;
 
+          // 通过查询关键字、搜索结果、获取3个总结点、获取广度一半的follow-up questions
           const newLearnings = await processSerpResult({
             query: serpQuery.query,
             result,
@@ -263,10 +264,7 @@ export async function deepResearch({
           }
         } catch (e: any) {
           if (e.message && e.message.includes('Timeout')) {
-            log(
-              `Timeout error running query: ${serpQuery.query}: `,
-              e,
-            );
+            log(`Timeout error running query: ${serpQuery.query}: `, e);
           } else {
             log(`Error running query: ${serpQuery.query}: `, e);
           }
